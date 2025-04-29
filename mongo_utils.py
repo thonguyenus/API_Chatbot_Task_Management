@@ -1,7 +1,9 @@
 from datetime import datetime, timedelta
 import pymongo
 from bson import ObjectId 
-
+import os
+from dotenv import load_dotenv
+load_dotenv()
 
 def get_mongo_client(mongo_uri):
   """Establish connection to the MongoDB."""
@@ -13,7 +15,7 @@ def get_mongo_client(mongo_uri):
     print(f"Connection failed: {e}")
     return None
 
-mongo_uri = "mongodb+srv://duchost121:28052004@cluster0.apnnabi.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
+mongo_uri = os.environ.get("MONGO_URI")
 if not mongo_uri:
   print("MONGO_URI not set in environment variables")
 
@@ -91,4 +93,8 @@ def get_all_tasks(role: str, user_id: str) -> dict:
         "tasks": task_list
     }
 
-
+def get_user_id_by_name(name: str) -> dict:
+    user = db["users"].find_one({"name": name})
+    if not user:
+        raise ValueError("User not found")
+    return {"user_id": str(user["_id"]), "name": name}
