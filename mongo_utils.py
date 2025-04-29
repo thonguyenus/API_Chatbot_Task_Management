@@ -52,7 +52,8 @@ def get_tasks_this_week(role: str, user_id: str) -> dict:
             "title": task["title"],
             "dueDate": task["dueDate"].strftime("%Y-%m-%d"),
             "status": task["status"],
-            "priority": task["priority"]
+            "priority": task["priority"],
+            "description": task["description"],
         }
         for task in tasks
     ]
@@ -81,7 +82,8 @@ def get_all_tasks(role: str, user_id: str) -> dict:
             "title": task["title"],
             "dueDate": task["dueDate"].strftime("%Y-%m-%d"),
             "status": task["status"],
-            "priority": task["priority"]
+            "priority": task["priority"],
+            "description": task["description"],
         }
         for task in tasks
     ]
@@ -98,3 +100,61 @@ def get_user_id_by_name(name: str) -> dict:
     if not user:
         raise ValueError("User not found")
     return {"user_id": str(user["_id"]), "name": name}
+
+def create_task(title: str, description: str, assigned_to_id: str, due_date_str: str, created_by_id: str, priority: str = "Medium", todo_checklist: list = []) -> dict:
+    """
+    Tạo task mới và lưu vào MongoDB.
+    - `assigned_to_id`: _id của người dùng được giao (string)
+    - `created_by_id`: _id của người tạo task (string)
+    - `due_date_str`: ngày hết hạn ở định dạng 'YYYY-MM-DD'
+    - `priority`: Low, Medium, High
+    - `todo_checklist`: Danh sách các công việc cần làm trong task, mỗi checklist có cấu trúc text và completed.
+    """
+    try:
+        due_date = datetime.strptime(due_date_str, "%Y-%m-%d")
+    except ValueError:
+        raise ValueError("Ngày deadline không đúng định dạng. Dùng 'YYYY-MM-DD'.")
+
+    if not todo_checklist:
+        raise ValueError("Danh sách todoChecklist không thể trống.")
+
+    # Kiểm tra cấu trúc todoChecklist
+    for item in todo_checklist:
+        if "text" not in item or "completed" not in item:
+            raise ValueError("Mỗi phần tử trong todoChecklist phải có trường 'text' và 'completed'.")
+        if not isinstance(item["completed"], bool):
+            raise ValueError("Trường 'completed' trong todoChecklist phải là kiểu boolean.")
+    
+    task = {
+        "title": title,
+        "description": description,
+        "assignedTo": [ObjectId(assigned_to_id)],  # Giao task cho người dùng
+        "createdBy": ObjectId(created_by_id),     # Người tạo task
+        "dueDate": due_date,
+        "status": "Pending",  # default
+        "priority": priority,
+        "createdAt": datetime.utcnow(),
+        "updatedAt": datetime.utcnow(),
+        "attachments": [],    # Mảng trống cho file đính kèm
+        "todoChecklist": todo_checklist,  # Danh sách công việc cần làm trong task
+        "progress": 0         # Tiến độ mặc định là 0%
+    }
+
+    result = collection.insert_one(task)
+    return {"message": "Task created successfully", "task_id": str(result.inserted_id)}
+
+
+
+def list_all_members() -> list:
+    """
+    Trả về danh sách tất cả người dùng có role là 'member'.
+    """
+    users = list(db["users"].find({"role": "member"}))
+
+    return [
+        {
+            "user_id": str(user["_id"]),
+            "name": user["name"]
+        }
+        for user in users
+    ]
