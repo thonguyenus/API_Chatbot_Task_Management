@@ -210,23 +210,30 @@ def get_user_names(user_ids: list) -> list:
     users = list(db["users"].find({"_id": {"$in": [ObjectId(uid) for uid in user_ids]}}))
     return [user["name"] for user in users]
 
+def rerank_with_bm25(query: str, tasks: list) -> list:
+    corpus = [get_task_text(task) for task in tasks]
+    tokenized_corpus = [doc.split() for doc in corpus]
+    bm25 = BM25Okapi(tokenized_corpus)
+    tokenized_query = query.split()
+    scores = bm25.get_scores(tokenized_query)
+    
+    for i, task in enumerate(tasks):
+        task["bm25_score"] = scores[i]
+    
+    # Kết hợp score bằng cách cho trọng số hoặc chuẩn hóa
+    for task in tasks:
+        # normalize if needed
+        combined_score = 0.5 * task.get("score", 0) + 0.5 * task["bm25_score"]
+        task["combined_score"] = combined_score
+    
+    # Sắp xếp lại theo combined score
+    tasks.sort(key=lambda x: x["combined_score"], reverse=True)
+    return tasks
+
 def search_related_tasks(query: str) -> dict:
     query_embedding = generate_embedding(query, task_type="RETRIEVAL_QUERY")
     similar_tasks = search_similar_tasks(query_embedding)
-    # print(similar_tasks)
-    # tokenized_tasks = [
-    #     (task["title"] + " " + task["description"]).split()
-    #     for task in similar_tasks
-    # ]
-
-    # bm25 = BM25Okapi(tokenized_tasks)
-
-    # def search_tasks(query, top_n=2):
-    #     tokenized_query = query.split()
-    #     top_tasks = bm25.get_top_n(tokenized_query, similar_tasks, n=top_n)
-    #     return top_tasks
-
-    # similar_tasks = search_tasks(query, top_n=2)
+    reranked_tasks = rerank_with_bm25(query, similar_tasks)
 
     task_list = [
         {
@@ -237,7 +244,7 @@ def search_related_tasks(query: str) -> dict:
             "status": task["status"],
             "assignedTo": get_user_names(task["assignedTo"])
         }
-        for task in similar_tasks
+        for task in reranked_tasks
     ]
 
     return {"tasks": task_list}
