@@ -1,6 +1,6 @@
 from google.genai import types
 from google import genai
-from mongo_utils import get_tasks_this_week, get_all_tasks, get_user_id_by_name, create_task, list_all_members
+from mongo_utils import get_tasks_this_week, get_all_tasks, get_user_id_by_name, create_task, list_all_members, search_related_tasks
 import os
 from dotenv import load_dotenv
 from collections import defaultdict
@@ -103,6 +103,18 @@ list_all_members_declaration = {
     }
 }
 
+search_related_tasks_declaration = {
+    "name": "search_related_tasks",
+    "description": "Find tasks related to a specific topic or keyword.",
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "query": {"type": "string", "description": "The topic or keyword to search for."}
+        },
+        "required": ["query"]
+    }
+}
+
 # Setup client
 client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 tools = types.Tool(function_declarations=[
@@ -110,9 +122,18 @@ tools = types.Tool(function_declarations=[
     get_all_tasks_declaration,
     get_user_id_by_name_declaration,
     create_task_declaration,
-    list_all_members_declaration
+    list_all_members_declaration,
+    search_related_tasks_declaration
 ])
 config = types.GenerateContentConfig(tools=[tools])
+
+def generate_embedding(text: str, task_type: str) -> list:
+    result = client.models.embed_content(
+        model="gemini-embedding-exp-03-07",
+        contents=[text],
+        config=types.EmbedContentConfig(task_type=task_type)
+    )
+    return result.embeddings[0]
 
 # Receive prompt, role, user_id from frontend
 def chatbot_api(prompt: str, role: str, user_id: str, session_id: str = None):
@@ -152,7 +173,7 @@ def chatbot_api(prompt: str, role: str, user_id: str, session_id: str = None):
         # Ngược lại, xử lý function call
         fn = part.function_call
         args = fn.args
-
+        print(f"Function call: {fn.name} with args: {args}")
         if fn.name == "get_user_id_by_name":
             result = get_user_id_by_name(name=args["name"])
         elif fn.name == "get_tasks_this_week":
@@ -173,6 +194,8 @@ def chatbot_api(prompt: str, role: str, user_id: str, session_id: str = None):
             )
         elif fn.name == "list_all_members":
             result = list_all_members()
+        elif fn.name == "search_related_tasks":
+            result = result = search_related_tasks(args["query"])
         else:
             raise ValueError(f"Unknown function: {fn.name}")
 

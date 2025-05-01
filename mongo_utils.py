@@ -3,6 +3,9 @@ import pymongo
 from bson import ObjectId 
 import os
 from dotenv import load_dotenv
+from embed_utils import generate_embedding
+from rank_bm25 import BM25Okapi
+
 load_dotenv()
 
 def get_mongo_client(mongo_uri):
@@ -158,3 +161,85 @@ def list_all_members() -> list:
         }
         for user in users
     ]
+
+def get_task_text(task: dict) -> str:
+    """
+    Trả về văn bản mô tả của task. (title + description)
+    """
+    title = task.get("title", "")
+    description = task.get("description", "")
+    return f"{title} {description}"
+    
+
+def update_task_embeddings():
+    tasks = collection.find({"embedding": {"$exists": False}})
+    for task in tasks:
+        embedding = generate_embedding(get_task_text(task), task_type="RETRIEVAL_DOCUMENT")
+        collection.update_one({"_id": task["_id"]}, {"$set": {"embedding": embedding}})
+
+def search_similar_tasks(query_embedding: list, limit: int = 3) -> list:
+    pipeline = [
+        {
+            "$vectorSearch": {
+                "index": "task_embedding_vector_index",  # Tên index cần tạo trong MongoDB Atlas
+                "path": "embedding",
+                "queryVector": query_embedding,
+                "limit": limit,
+                "numCandidates": 3
+            }
+        },
+        {
+            "$project": {
+                "_id": 1,
+                "title": 1,
+                "description": 1,
+                "dueDate": 1,
+                "status": 1,
+                "assignedTo": 1,
+                "score": {"$meta": "vectorSearchScore"}
+            }
+        }
+    ]
+    results = list(collection.aggregate(pipeline))
+    return results
+
+def get_user_names(user_ids: list) -> list:
+    """
+    Trả về danh sách tên người dùng từ danh sách ObjectId.
+    """
+    users = list(db["users"].find({"_id": {"$in": [ObjectId(uid) for uid in user_ids]}}))
+    return [user["name"] for user in users]
+
+def search_related_tasks(query: str) -> dict:
+    query_embedding = generate_embedding(query, task_type="RETRIEVAL_QUERY")
+    similar_tasks = search_similar_tasks(query_embedding)
+    # print(similar_tasks)
+    # tokenized_tasks = [
+    #     (task["title"] + " " + task["description"]).split()
+    #     for task in similar_tasks
+    # ]
+
+    # bm25 = BM25Okapi(tokenized_tasks)
+
+    # def search_tasks(query, top_n=2):
+    #     tokenized_query = query.split()
+    #     top_tasks = bm25.get_top_n(tokenized_query, similar_tasks, n=top_n)
+    #     return top_tasks
+
+    # similar_tasks = search_tasks(query, top_n=2)
+
+    task_list = [
+        {
+            "title": task["title"],
+            "description": task["description"],
+            "score": task["score"],
+            "dueDate": task["dueDate"].strftime("%Y-%m-%d"),
+            "status": task["status"],
+            "assignedTo": get_user_names(task["assignedTo"])
+        }
+        for task in similar_tasks
+    ]
+
+    return {"tasks": task_list}
+
+
