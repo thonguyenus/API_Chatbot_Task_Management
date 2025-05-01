@@ -2,6 +2,10 @@
 
 This project is a FastAPI-based backend that supports a smart task assistant chatbot, capable of understanding user queries, calling relevant functions, and performing semantic search on tasks using Google Gemini and MongoDB.
 
+Here is an example of a task collection:
+![Example]([https://upload.wikimedia.org/wikipedia/commons/4/4e/OpenAI_Logo.svg](https://res.cloudinary.com/dnfxraert/image/upload/v1746074953/Screenshot_2025-05-01_at_11.48.31_tw0kxy.png))
+
+
 ## 📁 Project Structure
 ```
 ├── main.py                    # FastAPI entrypoint for chatbot endpoint
