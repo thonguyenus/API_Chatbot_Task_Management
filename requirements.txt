@@ -1,0 +1,7 @@
+fastapi==0.110.1
+uvicorn==0.29.0
+pydantic==2.7.1
+python-dotenv==1.0.1
+pymongo==4.6.3
+google-generativeai==0.5.4
+rank-bm25==0.2.2
