@@ -16,7 +16,7 @@ def get_mongo_client(mongo_uri):
     print(f"Connection failed: {e}")
     return None
 
-mongo_uri = "mongodb+srv://duchost121:28052004@cluster0.apnnabi.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
+    mongo_uri = ""
 if not mongo_uri:
   print("MONGO_URI not set in environment variables")
 
@@ -137,7 +137,7 @@ get_all_tasks_declaration = {
 
 
 # Setup client
-client = genai.Client(api_key="AIzaSyAP-G46fYOTSz-kNiWKmqb2QZ-Lsqfkirw")
+client = genai.Client(api_key="")
 tools = types.Tool(function_declarations=[get_tasks_this_week_declaration, get_all_tasks_declaration])
 config = types.GenerateContentConfig(tools=[tools])
 
