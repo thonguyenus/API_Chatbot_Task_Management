@@ -156,9 +156,10 @@ def chatbot_api(prompt: str, role: str, user_id: str, session_id: str = None):
         if fn.name == "get_user_id_by_name":
             result = get_user_id_by_name(name=args["name"])
         elif fn.name == "get_tasks_this_week":
-            print("get task this week =======", args)
+            args["user_id"] = args.get("user_id") or args.get("usera_id")
             result = get_tasks_this_week(role=args["role"], user_id=args["user_id"])
         elif fn.name == "get_all_tasks":
+            args["user_id"] = args.get("user_id") or args.get("usera_id")
             result = get_all_tasks(role=args["role"], user_id=args["user_id"])
         elif fn.name == "create_task":
             result = create_task(
